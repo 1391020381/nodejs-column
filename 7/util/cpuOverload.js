@@ -1,3 +1,10 @@
+/**
+ * 在实现方案前,我们需要思考几个关键的问题
+ * 1. 获取当前进程所在的CPU使用率的方法
+ * 2. 应尽量避免影响服务性能
+ * 3. 什么时候出发过载,能否减少误处理情况
+ * 4. 请求丢弃方法和优先级
+ */
 const platform = process.platform;
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
@@ -22,7 +29,7 @@ class CpuOverload {
      * @param {int} maxCpuPercentage 
      * @param {float} baseProbability 
      */
-    constructor(maxOverloadNum =30, maxCpuPercentage=90, baseProbability=0.9, whiteList=[]) {
+    constructor(maxOverloadNum = 30, maxCpuPercentage = 90, baseProbability = 0.9, whiteList = []) {
         this.maxOverloadNum = maxOverloadNum;
         this.maxCpuPercentage = maxCpuPercentage;
         this.baseProbability = baseProbability;
@@ -33,21 +40,21 @@ class CpuOverload {
      * @param {string} path 
      * @param {string} uuid 
      */
-    isAvailable(path, uuid=false) {
-        if(path && this.whiteList.includes(path)) { // 判断是否在白名单内
+    isAvailable(path, uuid = false) {
+        if (path && this.whiteList.includes(path)) { // 判断是否在白名单内
             return true;
         }
-        if(uuid && canAccessList.includes(uuid)){ // 判断是否已经放行过
+        if (uuid && canAccessList.includes(uuid)) { // 判断是否已经放行过
             return true;
         }
-        if(isOverload) {
-            if(this._getRandomNum() <= currentProbability) {
+        if (isOverload) {
+            if (this._getRandomNum() <= currentProbability) {
                 removeCount++;
                 return false;
             }
         }
-        if(uuid) { // 需要将 uuid 加入到放行数组
-            if(canAccessList.length > maxUser){
+        if (uuid) { // 需要将 uuid 加入到放行数组
+            if (canAccessList.length > maxUser) {
                 canAccessList.shift()
             }
             canAccessList.push(uuid);
@@ -59,27 +66,27 @@ class CpuOverload {
      * 定时校验服务器是否过载
      */
     async check() {
-         /// 定时处理逻辑
-         setInterval(async () => {
+        /// 定时处理逻辑
+        setInterval(async () => {
             try {
                 const cpuInfo = await this._getProcessInfo();
-                if(!cpuInfo) { // 异常不处理
+                if (!cpuInfo) { // 异常不处理
                     return;
                 }
                 currentCpuPercentage = cpuInfo;
 
-                if(cpuInfo > this.maxCpuPercentage) { // 当 cpu 持续过高时，将当前的 overloadTimes 计数+1
+                if (cpuInfo > this.maxCpuPercentage) { // 当 cpu 持续过高时，将当前的 overloadTimes 计数+1
                     overloadTimes++;
                 } else { // 当低于 cpu 设定值时，则认为服务负载恢复，因此将 overloadTimes 设置为 0
                     overloadTimes = 0;
                     return isOverload = false;
                 }
 
-                if(overloadTimes > this.maxOverloadNum){ //当持续出现 cpu 过载时，并且达到了我们设置上线，则需要进行请求丢弃了
+                if (overloadTimes > this.maxOverloadNum) { //当持续出现 cpu 过载时，并且达到了我们设置上线，则需要进行请求丢弃了
                     isOverload = true;
                 }
                 this._setProbability();
-            } catch(err){
+            } catch (err) {
                 console.log(err);
                 return;
             }
@@ -89,7 +96,7 @@ class CpuOverload {
     /**
      * @description 获取一个概率值
      */
-    _getRandomNum(){
+    _getRandomNum() {
         return Math.random().toFixed(4);
     }
 
@@ -98,10 +105,10 @@ class CpuOverload {
      */
     _setProbability() {
         let o = overloadTimes >= 100 ? 100 : overloadTimes;
-        let c = currentCpuPercentage >= 100 ? 10 : currentCpuPercentage/10;
+        let c = currentCpuPercentage >= 100 ? 10 : currentCpuPercentage / 10;
         currentProbability = ((0.1 * o) * Math.exp(c) / maxValue * this.baseProbability).toFixed(4);
     }
-     
+
     /**
      * @description 获取进程信息
      */
@@ -113,10 +120,10 @@ class CpuOverload {
         } else { // 其他平台 linux & mac
             pidInfo = await this._getPs();
         }
-    
+
         cpuInfo = await this._parseInOs(pidInfo);
-        
-        if(!cpuInfo || cpuInfo == '') { // 异常处理
+
+        if (!cpuInfo || cpuInfo == '') { // 异常处理
             return false;
         }
         /// 命令行数据，字段解析处理
@@ -133,7 +140,7 @@ class CpuOverload {
 
         // 获取执行结果
         const { stdout, stderr } = await exec(cmd);
-        if(stderr) { // 异常情况
+        if (stderr) { // 异常情况
             console.log(stderr);
             return false;
         }
@@ -152,7 +159,7 @@ class CpuOverload {
 
     async _parseInOs(pidInfo) {
         let lines = pidInfo.trim().split(os.EOL);
-        if(!lines || lines.length < 2){
+        if (!lines || lines.length < 2) {
             return false;
         }
         let cpuStr = lines[1];
