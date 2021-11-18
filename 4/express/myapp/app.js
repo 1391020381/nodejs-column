@@ -28,5 +28,8 @@ app.use((req, res, next) => {
     console.log('third end');
 });
 
-app.get('/', (req, res) => res.send('Hello World!'))
+app.get('/', (req, res) => {
+    if (req.url === '/favicon.ico') return;
+    res.send('Hello World!')
+})
 

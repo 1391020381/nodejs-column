@@ -25,14 +25,14 @@ app.use(async (ctx, next) => {
     console.log('async');
     await next();
     await new Promise(
-        (resolve) => 
+        (resolve) =>
             setTimeout(
                 () => {
                     console.log(`wait 1000 ms end`);
                     resolve()
-                }, 
-            1000
-        )
+                },
+                1000
+            )
     );
     console.log('async end');
 });
@@ -46,7 +46,10 @@ app.use(async (ctx, next) => {
     console.log('third end');
 });
 app.use(async ctx => {
+    if (ctx.url === '/favicon.ico') return;
     ctx.body = 'Hello World';
-  });
-  
+});
+
 app.listen(3000, () => console.log(`Example app listening on port 3000!`));
+
+
